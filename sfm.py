@@ -79,6 +79,8 @@ def keypoint_matches(kp1,des1,kp2,des2,point_cloud,is_point_cloud_avaliable):
     ckp1 = [kp1[m.queryIdx] for m in good ]
     ckp2 = [kp2[m.trainIdx] for m in good ]
     if(is_point_cloud_avaliable == True):
+        print(len(point_cloud))
+        print(len(good))
         point_cloud = np.array([point_cloud[m.queryIdx] for m in good ])
         return pts1,pts2,common_pts1,common_pts2,common_des1,common_des2,ckp1,ckp2,point_cloud
     else:
@@ -161,34 +163,53 @@ def VO(L):
     kp2,des2 = feature_detection(img2,"Sift")
     pts1,pts2,common_pts1,common_pts2,common_des1,common_des2,ckp1,ckp2 = keypoint_matches(kp1,des1,kp2,des2,point_cloud,is_point_cloud_avaliable) 
     E,mask = cv.findEssentialMat(common_pts1,common_pts2,k,cv.RANSAC,0.999,1.0,1000)
+    common_pts1 = common_pts1[mask.ravel() == 1]
+    common_pts2 = common_pts2[mask.ravel() == 1]
+    common_des1 = common_des1[mask.ravel() == 1]
+    common_des2 = common_des2[mask.ravel() == 1]
     retval, R, t, mask = cv.recoverPose(E, common_pts1, common_pts2, k)
+    common_pts1 = common_pts1[mask.ravel() == 255]
+    common_pts2 = common_pts2[mask.ravel() == 255]
+    common_des1 = common_des1[mask.ravel() == 255]
+    common_des2 = common_des2[mask.ravel() == 255]
+    ckp1 = cv.KeyPoint_convert(common_pts1)
+    ckp2 = cv.KeyPoint_convert(common_pts2)
+    print(len(common_pts1),len(common_pts2))
     P1 = projection_matrix(k,np.eye(3).astype(np.float32),np.zeros((3,1))) 
     P2 = projection_matrix(k,R,t) 
     trajectory.append(t)
     print("trigulating img 1 and 2")
     point_cloud = Triangulation(P1, P2, common_pts1, common_pts2)
+    print(0,reprojection_error(point_cloud,P1,common_pts1))
+    print(1,reprojection_error(point_cloud,P2,common_pts2))
     p3d = point_cloud
     #print(point_cloud.shape)
-    for i in range(2,len(L)-1):
+    for i in range(1,10):
+        print(i)
         is_point_cloud_avaliable = True
+        print(L[i],L[i+1])
         img3 = cv.imread(dataset_location +'/'+ L[i+1],cv.IMREAD_GRAYSCALE)
         kp3,des3 = feature_detection(img2,"Sift")
-        print(len(ckp2))
+        #print(len(ckp2))
         pts2,pts3,common_pts2,common_pts3,common_des2,common_des3,ckp2,ckp3,point_cloud = keypoint_matches(ckp2,common_des2,kp3,des3,point_cloud,is_point_cloud_avaliable)
-        print(len(point_cloud),len(common_pts3))
+        #print(len(point_cloud),len(common_pts3))
         R1,t1 = pnp(point_cloud[:,:3],common_pts3,k)
         is_point_cloud_avaliable = False
-        pts2,pts3,common_pts2,common_pts3,common_des2,common_des3,ckp2,ckp3 = keypoint_matches(kp2,des2,kp3,des3,point_cloud,is_point_cloud_avaliable)
-        print(R1,t1)
+        print(R,t,R1,t1)
         trajectory.append(t1)
         P3 = projection_matrix(k,R1,t1)
+        #if(np.linalg.norm(t - t1)> 0.01):
+        print('not a same')
+        pts2,pts3,common_pts2,common_pts3,common_des2,common_des3,ckp2,ckp3 = keypoint_matches(kp2,des2,kp3,des3,point_cloud,is_point_cloud_avaliable)
         point_cloud = Triangulation(P2, P3, common_pts2, common_pts3)
-        p3d = np.vstack((p3d,point_cloud))
+        print(i,reprojection_error(point_cloud,P3,common_pts3))
+        if(reprojection_error(point_cloud,P3,common_pts3) < 5):
+            p3d = np.vstack((p3d,point_cloud))
         img2 = img3
         kp2,des2 = kp3,des3
         pts2,common_pts2,common_des2,ckp2 = pts3,common_pts3,common_des3,ckp3
-        print(len(ckp2))
-        print(len(point_cloud))
+        #print(len(ckp2))
+        #print(len(point_cloud))
         P2 = P3
     end = time.time()
     print ("Time elapsed:", end - start)
