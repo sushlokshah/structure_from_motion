@@ -184,7 +184,7 @@ def VO(L):
     print(1,reprojection_error(point_cloud,P2,common_pts2))
     p3d = point_cloud
     #print(point_cloud.shape)
-    for i in range(1,10):
+    for i in range(1,2):
         print(i)
         is_point_cloud_avaliable = True
         print(L[i],L[i+1])
@@ -192,7 +192,7 @@ def VO(L):
         kp3,des3 = feature_detection(img2,"Sift")
         #print(len(ckp2))
         pts2,pts3,common_pts2,common_pts3,common_des2,common_des3,ckp2,ckp3,point_cloud = keypoint_matches(ckp2,common_des2,kp3,des3,point_cloud,is_point_cloud_avaliable)
-        #print(len(point_cloud),len(common_pts3))
+        print(point_cloud.shape)
         R1,t1 = pnp(point_cloud[:,:3],common_pts3,k)
         is_point_cloud_avaliable = False
         print(R,t,R1,t1)
